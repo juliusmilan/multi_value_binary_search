@@ -10,6 +10,7 @@
 /* Following implementation of MIDDLE is better than simple (left + right) / 2 for big values of
  * left and right, where sum of those is larger then MAX_INT.
  */
+/// TODO use 1 >> instead of / 2 for division
 #define MIDDLE(left, right) ((left) + ((right) - (left)) / 2)
 /* Alternative */
 //#define MIDDLE(left, right) (((left) + (right)) / 2)
@@ -117,6 +118,7 @@ _perform_bs (const int *arr,
         boundaries[key_idx + 1].l = (found) ? pos + 1 : pos;
 }
 
+// TODO selfsearch_performed dat na zaciatok, nech zabera menej miesta na stacku
 /**
  * WIP: Experimental
  * TODO: reduce size & arguments
@@ -341,6 +343,8 @@ run_test (const int *arr, int N, const int *keys, int M, int test_num)
 #define KEYS_MAX_SIZE          1999 /* (or M), randomized too */
 #define ALWAYS_GENERATE_DIFFERENT_TESTS
 
+
+// TODO zbavit sa mallocov
 void
 run_generic_testsuite (const long test_cnt)
 {
