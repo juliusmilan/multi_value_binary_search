@@ -1,0 +1,25 @@
+Milan's Multi Key Binary Search - mmkbs
+=======================================
+
+Abstract:
+
+The Milan’s Multi-key Binary Search is an algorithm for fast search of multiple keys in a sorted
+array of values. The algorithm is based on classical, i.e. one-key binary search and uses it as its
+fundamental part, additionally it takes advantage of the knowledge obtained from its previous
+results to adjust the boundaries of each next binary searches and so lower the amount of values that
+will be searched by binary search. The algorithm has one limitation, it needs to obtain its keys
+input sorted, otherwise it is not guaranteed and also highly probable that some of the searched keys
+won’t be found. Time complexity of the algorithm is a function of two variables and is logarithmic
+considering both of them. The algorithm has no limitation regarding to amount of keys.
+
+For detailed description, please see file mmkbs_draft.pdf which si present in this repository.
+
+In the time of writing the draft (Oct 2017) this should be
+the worlds fastest multi key binary search algorithm.
+
+We found a similar work named:
+"A New Algorithm for Tiered Binary Search"
+from July 2017, published by:
+"Int'l Conf. Foundations of Computer Science | FCS'17 |"
+
+However after investigation, I came to conclusion that this my new algorithm is faster.
