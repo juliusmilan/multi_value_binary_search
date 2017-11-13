@@ -226,7 +226,7 @@ _fmkbs (const int *arr,
             selfsearch_performed = true;
         }
 
-        if (!selfsearch_performed)    /// TODO do measurements with middle search here and in the middle between l and r half
+        if (!selfsearch_performed)
             _perform_bs(arr, keys, M, m, boundaries, results);
     }
 }
@@ -272,6 +272,9 @@ m_times_bs (const int *arr, int N, const int *keys, int M, int *results)
  * GENERIC TESTSUITE
  */
 
+#define TEST_OK    0
+#define TEST_FAIL  1
+
 /* qsort int comparison function */
 int
 int_cmp (const void *a, const void *b)
@@ -292,10 +295,61 @@ print_int_array (const int *a, int n)
     printf(" ]\n");
 }
 
+/**
+ * Check results correctness.
+ *
+ * @param[in] results_m_times_bs may be NULL, then check_results will compute it if needed
+ */
+int
+check_results (const int *results_m_times_bs,
+               const int *results_mkbs,
+               const int *results_fmkbs,
+               const int *arr,
+               int N,
+               const int *keys,
+               int M,
+               int test_num)
+{
+    if (!results_mkbs || !results_fmkbs) {
+        printf(" No inputs: results_mkbs = %p, results_fmkbs = %p\n", results_mkbs, results_fmkbs);
+        return TEST_FAIL;
+    }
+    else {
+        /* compare mkbs & fmkbs results */
+        if (0 != memcmp(results_mkbs, results_fmkbs, M * sizeof(int))) {
+            /* results differ, compute the results also by m_times_bs */
+            int *results_exp = NULL;
+            if (!results_m_times_bs) {
+                results_exp = (int *) malloc(M * sizeof(int));
+                memset(results_exp, -1, M * sizeof(int));
+                m_times_bs(arr, N, keys, M, results_exp);
+            }
+
+            printf(" Test %d FAILED --------------------------------------------\n", test_num);
+            printf(" Expected results:\n");
+            print_int_array((results_m_times_bs) ? results_m_times_bs : results_exp, M);
+            printf(" fmkbs results:\n");
+            print_int_array(results_fmkbs, M);
+            printf(" mkbs results:\n");
+            print_int_array(results_mkbs, M);
+            printf(" arr[%d]:\n", N);
+            print_int_array(arr, N);
+            printf(" keys[%d]:\n", M);
+            print_int_array(keys, M);
+            putchar('\n');
+
+            free(results_exp);
+            return TEST_FAIL;
+        }
+    }
+
+    return TEST_OK;
+}
+
 int
 run_test (const int *arr, int N, const int *keys, int M, int test_num)
 {
-    int res = 0;
+    int res;
 
     int *results_mkbs = (int *) malloc(M * sizeof(int));
     int *results_fmkbs = (int *) malloc(M * sizeof(int));
@@ -303,32 +357,10 @@ run_test (const int *arr, int N, const int *keys, int M, int test_num)
     memset(results_mkbs, -1, M * sizeof(int));
     memset(results_fmkbs, -1, M * sizeof(int));
 
-    fmkbs(arr, N, keys, M, results_fmkbs);
     mkbs(arr, N, keys, M, results_mkbs);
+    fmkbs(arr, N, keys, M, results_fmkbs);
 
-    /* compare mkbs & fmkbs results */
-    if (0 != memcmp(results_mkbs, results_fmkbs, M * sizeof(int))) {
-        /* results differ, compute the results also by m_times_bs */
-        int *results_exp = (int *) malloc(M * sizeof(int));
-        memset(results_exp, -1, M * sizeof(int));
-        m_times_bs(arr, N, keys, M, results_exp);
-
-        printf(" Test %d FAILED --------------------------------------------\n", test_num);
-        printf(" Expected results:\n");
-        print_int_array(results_exp, M);
-        printf(" fmkbs results:\n");
-        print_int_array(results_fmkbs, M);
-        printf(" mkbs results:\n");
-        print_int_array(results_mkbs, M);
-        printf(" arr[%d]:\n", N);
-        print_int_array(arr, N);
-        printf(" keys[%d]:\n", M);
-        print_int_array(keys, M);
-        putchar('\n');
-
-        free(results_exp);
-        res = 1;
-    }
+    res = check_results(NULL, results_mkbs, results_fmkbs, arr, N, keys, M, test_num);
 
     free(results_mkbs);
     free(results_fmkbs);
@@ -407,6 +439,15 @@ run_generic_testsuite (const long test_cnt)
  * MEASSUREMENTS
  */
 
+#define CHECK_RESULTS_WHEN_MEASURING
+
+#define t(func, ...) ({        \
+    clock_t beg = clock();     \
+    func(__VA_ARGS__);         \
+    clock_t end = clock();     \
+    ((long double) end - beg); \
+})
+
 /**
  * Do meassurements on pseudorandom arr and key values of size N, resp. M.
  */
@@ -415,9 +456,9 @@ meassure (const int N,
           const int M,
           const int arr_val_range,
           const int keys_val_range,
-          long double *res_m_times_bs,
-          long double *res_mkbs,
-          long double *res_fmkbs)
+          long double *time_m_times_bs,
+          long double *time_mkbs,
+          long double *time_fmkbs)
 {
     /** Create arr of size N */
     /* with duplicates */
@@ -459,24 +500,25 @@ meassure (const int N,
     }
     free(keys_dup);
 
-    int *results = malloc(M * sizeof(int));
+    int *res_m_times_bs = malloc(M * sizeof(int));
+    int *res_mkbs       = malloc(M * sizeof(int));
+    int *res_fmkbs      = malloc(M * sizeof(int));
 
-    clock_t beg_m_times_bs = clock();
-    m_times_bs(arr, N, keys, M, results);
-    clock_t end_m_times_bs = clock();
-    *res_m_times_bs = (long double) end_m_times_bs - beg_m_times_bs;
+    memset(res_m_times_bs, -1, M * sizeof(int));
+    memset(res_mkbs, -1, M * sizeof(int));
+    memset(res_fmkbs, -1, M * sizeof(int));
 
-    clock_t beg_mkbs = clock();
-    mkbs(arr, N, keys, M, results);
-    clock_t end_mkbs = clock();
-    *res_mkbs = (long double) end_mkbs - beg_mkbs;
+    *time_m_times_bs = t(m_times_bs, arr, N, keys, M, res_m_times_bs);
+    *time_mkbs       = t(mkbs,       arr, N, keys, M, res_mkbs);
+    *time_fmkbs      = t(fmkbs,      arr, N, keys, M, res_fmkbs);
 
-    clock_t beg_fmkbs = clock();
-    fmkbs(arr, N, keys, M, results);
-    clock_t end_fmkbs = clock();
-    *res_fmkbs = (long double) end_fmkbs - beg_fmkbs;
+#ifdef CHECK_RESULTS_WHEN_MEASURING
+    check_results(res_m_times_bs, res_mkbs, res_fmkbs, arr, N, keys, M, 0);
+#endif
 
-    free(results);
+    free(res_m_times_bs);
+    free(res_mkbs);
+    free(res_fmkbs);
     free(arr);
     free(keys);
 }
@@ -486,26 +528,27 @@ create_meassurements_csv (const char *csv_name)
 {
     FILE *f = fopen(csv_name, "w");
 
-    long double res_m_times_bs;
-    long double res_mkbs;
-    long double res_fmkbs;
+    long double time_m_times_bs;
+    long double time_mkbs;
+    long double time_fmkbs;
 
     int meassurements_cnt = 20;
 
-//    for (int M = 1000; M <= 400000; M += 1000) {
+//    for (int M = 1000; M <= 400000; M += 1000)
     for (int N = 1000; N <= 400000; N += 1000)
     {
         long double sum_m_times_bs = 0;
         long double sum_mkbs = 0;
         long double sum_fmkbs = 0;
 
+        /* meassure `meassurements_cnt` times for the same value of N resp. M and average it */
         for (int i = 0; i < meassurements_cnt; i++)
         {
-//            meassure(200000, M, 50000000, 50000000, &res_m_times_bs, &res_mkbs, &res_fmkbs);
-            meassure(N, 50000, 50000000, 50000000, &res_m_times_bs, &res_mkbs, &res_fmkbs);
-            sum_m_times_bs += res_m_times_bs;
-            sum_mkbs       += res_mkbs;
-            sum_fmkbs      += res_fmkbs;
+//            meassure(200000, M, 50000000, 50000000, &time_m_times_bs, &time_mkbs, &time_fmkbs);
+            meassure(N, 50000, 50000000, 50000000, &time_m_times_bs, &time_mkbs, &time_fmkbs);
+            sum_m_times_bs += time_m_times_bs;
+            sum_mkbs       += time_mkbs;
+            sum_fmkbs      += time_fmkbs;
         }
 
         /* store average of all meassurements */
