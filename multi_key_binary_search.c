@@ -8,12 +8,11 @@
 /// TODO add description to all parameters and return values of all procedures
 
 /* Following implementation of MIDDLE is better than simple (left + right) / 2 for big values of
- * left and right, where sum of those is larger then MAX_INT.
+ * left and right, where sum of those is larger then INT_MAX, which causes a bug.
  */
-/// TODO use 1 >> instead of / 2 for division
-#define MIDDLE(left, right) ((left) + ((right) - (left)) / 2)
+#define MIDDLE(left, right) ((left) + (((right) - (left)) >> 1))
 /* Alternative */
-//#define MIDDLE(left, right) (((left) + (right)) / 2)
+//#define MIDDLE(left, right) (((left) + (right)) >> 1)
 
 /**
  * Binary search.
@@ -50,21 +49,21 @@ bs (const int *arr, int left, int right, int key, bool *found)
  * Multi-key binary search - internal recursive call.
  */
 static void
-_mkbs (const int *arr, int arr_l, int arr_r, const int *keys, int M, int *results)
+_mkbs (const int *arr, int arr_l, int arr_r, const int *keys, int keys_l, int keys_r, int *results)
 {
     /* end condition */
-    if (M <= 0)
+    if (keys_r - keys_l < 0)
         return;
 
-    int keys_middle = MIDDLE(0, M - 1);
+    int keys_middle = MIDDLE(keys_l, keys_r);
 
     /* throw away half of keys, if the key on keys_middle is out */
     if (keys[keys_middle] < arr[arr_l]) {
-        _mkbs(arr, arr_l, arr_r, &keys[keys_middle + 1], M - 1 - keys_middle, &results[keys_middle + 1]);
+        _mkbs(arr, arr_l, arr_r, keys, keys_middle + 1, keys_r, results);
         return;
     }
-    else if (keys[keys_middle] > arr[arr_r]) {
-        _mkbs(arr, arr_l, arr_r, keys, keys_middle, results);
+    if (keys[keys_middle] > arr[arr_r]) {
+        _mkbs(arr, arr_l, arr_r, keys, keys_l, keys_middle - 1, results);
         return;
     }
 
@@ -74,8 +73,8 @@ _mkbs (const int *arr, int arr_l, int arr_r, const int *keys, int M, int *result
     if (found)
         results[keys_middle] = pos;
 
-    _mkbs(arr, arr_l, pos - 1, keys, keys_middle, results);
-    _mkbs(arr, (found) ? pos + 1 : pos, arr_r, &keys[keys_middle + 1], M - 1 - keys_middle, &results[keys_middle + 1]);
+    _mkbs(arr, arr_l, pos - 1, keys, keys_l, keys_middle - 1, results);
+    _mkbs(arr, (found) ? pos + 1 : pos, arr_r, keys, keys_middle + 1, keys_r, results);
 }
 
 /**
@@ -86,7 +85,7 @@ _mkbs (const int *arr, int arr_l, int arr_r, const int *keys, int M, int *result
 void
 mkbs (const int *arr, int N, const int *keys, int M, int *results)
 {
-    _mkbs(arr, 0, N - 1, keys, M, results);
+    _mkbs(arr, 0, N - 1, keys, 0, M - 1, results);
 }
 
 struct boundaries {
@@ -452,10 +451,10 @@ run_generic_testsuite (const long test_cnt)
  * Do meassurements on pseudorandom arr and key values of size N, resp. M.
  */
 void
-meassure (const int N,
-          const int M,
-          const int arr_val_range,
-          const int keys_val_range,
+meassure (int N,
+          int M,
+          int arr_val_range,
+          int keys_val_range,
           long double *time_m_times_bs,
           long double *time_mkbs,
           long double *time_fmkbs)
